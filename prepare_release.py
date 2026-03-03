@@ -16,7 +16,7 @@ def main():
     PROJECT_NAME = "ExperimentalDumpsterResearch"
     TARGET_RUNTIME = "win-x64"
     RELEASE_DIR = Path("github_release")
-    BUILD_DIR = Path(f"{PROJECT_NAME}/bin/x64/Release")
+    BUILD_DIR = Path(f"{PROJECT_NAME}/bin/Release")
     
     # Clean and create release directory
     if RELEASE_DIR.exists():
@@ -27,8 +27,13 @@ def main():
     files_to_package = []
     
     # Find built DLLs and dependencies
-    if BUILD_DIR.exists():
-        for item in BUILD_DIR.iterdir():
+    build_dir = BUILD_DIR
+    print(f"🔍 Looking in: {build_dir}")
+    
+    if build_dir.exists():
+        print(f"📁 Build directory exists")
+        for item in build_dir.iterdir():
+            print(f"  Found: {item.name}")
             if item.is_file() and item.suffix in ['.dll', '.json']:
                 files_to_package.append((item, item.name))
             elif item.is_dir() and item.name == "runtimes":
@@ -39,6 +44,9 @@ def main():
                         if native_file.is_file():
                             files_to_package.append((native_file, native_file.name))
                 continue  # Skip other platform directories
+    else:
+        print(f"❌ Build directory not found: {build_dir}")
+        return
     
     # Copy README and LICENSE to release directory (not in zip)
     readme_src = Path("README.md")
@@ -72,6 +80,7 @@ def main():
     manifest_found = any(dest_name == f"{PROJECT_NAME}.json" for _, dest_name in files_to_package)
     if not manifest_found:
         print(f"  ❌ MANIFEST NOT FOUND: {PROJECT_NAME}.json")
+        print(f"  📋 Found files: {[dest_name for _, dest_name in files_to_package]}")
         return False
     
     # Verify main DLL exists

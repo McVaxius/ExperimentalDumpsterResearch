@@ -22,10 +22,10 @@ public class MainWindow : Window, IDisposable
 
     public MainWindow(Plugin plugin, Configuration configuration, 
         VideoPlaybackService videoService, TestBenchService testBenchService) 
-        : base("Experimental Dumpster Research", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("Experimental Dumpster Research", (Dalamud.Bindings.ImGui.ImGuiWindowFlags)(ImGuiNET.ImGuiWindowFlags.NoScrollbar | ImGuiNET.ImGuiWindowFlags.NoScrollWithMouse))
     {
         Size = new Vector2(500, 600);
-        SizeCondition = ImGuiCond.FirstUseEver;
+        SizeCondition = (Dalamud.Bindings.ImGui.ImGuiCond)ImGuiNET.ImGuiCond.FirstUseEver;
         
         this.config = configuration;
         this.videoService = videoService;

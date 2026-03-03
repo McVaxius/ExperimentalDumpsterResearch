@@ -13,10 +13,10 @@ public class ConfigWindow : Window, IDisposable
     private readonly IChatGui chatGui;
 
     public ConfigWindow(Plugin plugin, Configuration configuration) 
-        : base("EDR Configuration", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("EDR Configuration", (Dalamud.Bindings.ImGui.ImGuiWindowFlags)(ImGuiNET.ImGuiWindowFlags.NoScrollbar | ImGuiNET.ImGuiWindowFlags.NoScrollWithMouse))
     {
         Size = new Vector2(600, 700);
-        SizeCondition = ImGuiCond.FirstUseEver;
+        SizeCondition = (Dalamud.Bindings.ImGui.ImGuiCond)ImGuiNET.ImGuiCond.FirstUseEver;
         
         this.config = configuration;
         this.plugin = plugin;
@@ -30,9 +30,23 @@ public class ConfigWindow : Window, IDisposable
         // General Settings
         if (ImGui.CollapsingHeader("General Settings"))
         {
-            ImGui.Checkbox("Enable Plugin", ref config.IsEnabled);
-            ImGui.Checkbox("Show Main Window", ref config.ShowMainWindow);
-            ImGui.Checkbox("Show Debug Info", ref config.ShowDebugInfo);
+            var isEnabled = config.IsEnabled;
+            if (ImGui.Checkbox("Enable Plugin", ref isEnabled))
+            {
+                config.IsEnabled = isEnabled;
+            }
+            
+            var showMainWindow = config.ShowMainWindow;
+            if (ImGui.Checkbox("Show Main Window", ref showMainWindow))
+            {
+                config.ShowMainWindow = showMainWindow;
+            }
+            
+            var showDebugInfo = config.ShowDebugInfo;
+            if (ImGui.Checkbox("Show Debug Info", ref showDebugInfo))
+            {
+                config.ShowDebugInfo = showDebugInfo;
+            }
         }
 
         // Video Playback Settings
@@ -52,16 +66,38 @@ public class ConfigWindow : Window, IDisposable
                 chatGui.Print("[EDR] Manual file path entry required");
             }
 
-            ImGui.Checkbox("Loop Video", ref config.LoopVideo);
-            ImGui.Checkbox("Auto Play", ref config.AutoPlay);
-            ImGui.Checkbox("Mute Audio", ref config.MuteAudio);
+            var loopVideo = config.LoopVideo;
+            if (ImGui.Checkbox("Loop Video", ref loopVideo))
+            {
+                config.LoopVideo = loopVideo;
+            }
+            
+            var autoPlay = config.AutoPlay;
+            if (ImGui.Checkbox("Auto Play", ref autoPlay))
+            {
+                config.AutoPlay = autoPlay;
+            }
+            
+            var muteAudio = config.MuteAudio;
+            if (ImGui.Checkbox("Mute Audio", ref muteAudio))
+            {
+                config.MuteAudio = muteAudio;
+            }
             
             if (!config.MuteAudio)
             {
-                ImGui.SliderFloat("Volume", ref config.Volume, 0.0f, 1.0f);
+                var volume = config.Volume;
+                if (ImGui.SliderFloat("Volume", ref volume, 0.0f, 1.0f))
+                {
+                    config.Volume = volume;
+                }
             }
             
-            ImGui.SliderFloat("Playback Speed", ref config.PlaybackSpeed, 0.25f, 2.0f);
+            var playbackSpeed = config.PlaybackSpeed;
+            if (ImGui.SliderFloat("Playback Speed", ref playbackSpeed, 0.25f, 2.0f))
+            {
+                config.PlaybackSpeed = playbackSpeed;
+            }
 
             // Test video path
             ImGui.Separator();
@@ -76,27 +112,78 @@ public class ConfigWindow : Window, IDisposable
         // Video Display Settings
         if (ImGui.CollapsingHeader("🖼️ Video Display"))
         {
-            ImGui.SliderInt("Window Width", ref config.VideoWindowWidth, 320, 1920);
-            ImGui.SliderInt("Window Height", ref config.VideoWindowHeight, 240, 1080);
-            ImGui.Checkbox("Maintain Aspect Ratio", ref config.MaintainAspectRatio);
-            ImGui.Checkbox("Always On Top", ref config.AlwaysOnTop);
-            ImGui.SliderFloat("Window Opacity", ref config.Opacity, 0.1f, 1.0f);
+            var windowWidth = config.VideoWindowWidth;
+            if (ImGui.SliderInt("Window Width", ref windowWidth, 320, 1920))
+            {
+                config.VideoWindowWidth = windowWidth;
+            }
+            
+            var windowHeight = config.VideoWindowHeight;
+            if (ImGui.SliderInt("Window Height", ref windowHeight, 240, 1080))
+            {
+                config.VideoWindowHeight = windowHeight;
+            }
+            var maintainAspectRatio = config.MaintainAspectRatio;
+            if (ImGui.Checkbox("Maintain Aspect Ratio", ref maintainAspectRatio))
+            {
+                config.MaintainAspectRatio = maintainAspectRatio;
+            }
+            
+            var alwaysOnTop = config.AlwaysOnTop;
+            if (ImGui.Checkbox("Always On Top", ref alwaysOnTop))
+            {
+                config.AlwaysOnTop = alwaysOnTop;
+            }
+            
+            var opacity = config.Opacity;
+            if (ImGui.SliderFloat("Window Opacity", ref opacity, 0.1f, 1.0f))
+            {
+                config.Opacity = opacity;
+            }
         }
 
         // Test Bench Settings
         if (ImGui.CollapsingHeader("🧪 Test Bench"))
         {
-            ImGui.Checkbox("Enable Performance Monitoring", ref config.EnablePerformanceMonitoring);
-            ImGui.SliderInt("Benchmark Iterations", ref config.BenchmarkIterations, 1, 100);
-            ImGui.Checkbox("Log Detailed Metrics", ref config.LogDetailedMetrics);
+            var enablePerfMonitoring = config.EnablePerformanceMonitoring;
+            if (ImGui.Checkbox("Enable Performance Monitoring", ref enablePerfMonitoring))
+            {
+                config.EnablePerformanceMonitoring = enablePerfMonitoring;
+            }
+            
+            var benchmarkIterations = config.BenchmarkIterations;
+            if (ImGui.SliderInt("Benchmark Iterations", ref benchmarkIterations, 1, 100))
+            {
+                config.BenchmarkIterations = benchmarkIterations;
+            }
+            
+            var logDetailedMetrics = config.LogDetailedMetrics;
+            if (ImGui.Checkbox("Log Detailed Metrics", ref logDetailedMetrics))
+            {
+                config.LogDetailedMetrics = logDetailedMetrics;
+            }
         }
 
         // Experimental Features
         if (ImGui.CollapsingHeader("🔬 Experimental Features"))
         {
-            ImGui.Checkbox("Enable Video Overlays", ref config.EnableVideoOverlays);
-            ImGui.Checkbox("Enable GPU Acceleration", ref config.EnableGpuAcceleration);
-            ImGui.Checkbox("Enable Multi-threading", ref config.EnableMultiThreading);
+            var enableVideoOverlays = config.EnableVideoOverlays;
+            if (ImGui.Checkbox("Enable Video Overlays", ref enableVideoOverlays))
+            {
+                config.EnableVideoOverlays = enableVideoOverlays;
+            }
+            
+            var enableGpuAcceleration = config.EnableGpuAcceleration;
+            if (ImGui.Checkbox("Enable GPU Acceleration", ref enableGpuAcceleration))
+            {
+                config.EnableGpuAcceleration = enableGpuAcceleration;
+            }
+            
+            var enableMultiThreading = config.EnableMultiThreading;
+            if (ImGui.Checkbox("Enable Multi-threading", ref enableMultiThreading))
+            {
+                config.EnableMultiThreading = enableMultiThreading;
+            }
             
             ImGui.Text("Video Backend:");
             var backend = config.VideoBackend;
@@ -165,7 +252,11 @@ public class ConfigWindow : Window, IDisposable
                     ImGui.EndCombo();
                 }
                 
-                ImGui.SliderInt($"##progress{i}", ref project.Progress, 0, 100);
+                var progress = project.Progress;
+                if (ImGui.SliderInt($"##progress{i}", ref progress, 0, 100))
+                {
+                    project.Progress = progress;
+                }
                 
                 if (ImGui.Button($"Select##select{i}"))
                 {
