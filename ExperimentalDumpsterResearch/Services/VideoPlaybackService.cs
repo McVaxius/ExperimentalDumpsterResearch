@@ -328,13 +328,13 @@ public class VideoPlaybackService : IDisposable
 
         try
         {
-            var analysis = FFProbe.Analyze(videoPath);
+            var analysis = FFProbe.Analyse(videoPath);
             
             return new VideoInfo
             {
                 Duration = analysis.Duration,
-                Width = (int)analysis.VideoStreams.FirstOrDefault()?.Width ?? 0,
-                Height = (int)analysis.VideoStreams.FirstOrDefault()?.Height ?? 0,
+                Width = analysis.VideoStreams.FirstOrDefault()?.Width ?? 0,
+                Height = analysis.VideoStreams.FirstOrDefault()?.Height ?? 0,
                 FrameRate = analysis.VideoStreams.FirstOrDefault()?.FrameRate ?? 0,
                 Codec = analysis.VideoStreams.FirstOrDefault()?.CodecName ?? "",
                 FileSize = new FileInfo(videoPath).Length

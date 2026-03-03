@@ -7,7 +7,6 @@ using System.Numerics;
 using System.IO;
 using System.Linq;
 using ExperimentalDumpsterResearch.Services;
-using static Dalamud.Interface.Utility.Raii;
 
 namespace ExperimentalDumpsterResearch.Windows;
 

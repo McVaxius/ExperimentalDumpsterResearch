@@ -31,15 +31,21 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
         // Initialize services following PlogonRules Section 2.1
-        var serviceManager = pluginInterface.GetServiceProvider();
-        commandManager = serviceManager.GetRequiredService<ICommandManager>();
-        chatGui = serviceManager.GetRequiredService<IChatGui>();
-        clientState = serviceManager.GetRequiredService<IClientState>();
-        framework = serviceManager.GetRequiredService<IFramework>();
-        pluginLog = serviceManager.GetRequiredService<IPluginLog>();
+        pluginInterface.Create<Service<ICommandManager>>();
+        pluginInterface.Create<Service<IChatGui>>();
+        pluginInterface.Create<Service<IClientState>>();
+        pluginInterface.Create<Service<IFramework>>();
+        pluginInterface.Create<Service<IPluginLog>>();
+        
+        commandManager = Service<ICommandManager>.Instance;
+        chatGui = Service<IChatGui>.Instance;
+        clientState = Service<IClientState>.Instance;
+        framework = Service<IFramework>.Instance;
+        pluginLog = Service<IPluginLog>.Instance;
 
         configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         configuration.Initialize(pluginInterface);
+        configuration.SetPluginInterface(pluginInterface);
 
         // Initialize experimental services
         videoService = new VideoPlaybackService(configuration, pluginLog, chatGui);

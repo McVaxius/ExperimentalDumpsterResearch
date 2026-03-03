@@ -3,7 +3,6 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using ImGuiNET;
 using System.Numerics;
-using static Dalamud.Interface.Utility.Raii;
 
 namespace ExperimentalDumpsterResearch.Windows;
 

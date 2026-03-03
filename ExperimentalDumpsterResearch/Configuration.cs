@@ -61,7 +61,11 @@ public class Configuration : IPluginConfiguration
         }
     }
 
-    public void Save() => Service<IDalamudPluginInterface>.Instance?.SavePluginConfig(this);
+    private IDalamudPluginInterface? pluginInterface;
+
+    public void SetPluginInterface(IDalamudPluginInterface pi) => pluginInterface = pi;
+
+    public void Save() => pluginInterface?.SavePluginConfig(this);
 }
 
 [Serializable]
