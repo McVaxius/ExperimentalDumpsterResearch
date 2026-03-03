@@ -6,7 +6,6 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using FFMpegCore;
 using Timer = System.Windows.Forms.Timer;
 
 namespace ExperimentalDumpsterResearch.Services;
@@ -32,9 +31,6 @@ public class VideoPlaybackService : IDisposable
         this.config = config;
         this.log = log;
         this.chat = chat;
-        
-        // Set up FFMpeg options
-        GlobalFFOptions.Configure(new FFOptions { BinaryFolder = GetFFmpegPath() });
     }
 
     /// <summary>
@@ -56,10 +52,7 @@ public class VideoPlaybackService : IDisposable
             currentVideoPath = videoPath;
             log.Info($"[EDR] Starting video playback: {videoPath}");
 
-            // Create video window
-            await CreateVideoWindow();
-
-            // Start VLC process for video playback
+            // Start VLC process for video playback (simplified - no custom window)
             await StartVLCPlayback(videoPath);
 
             isPlaying = true;
@@ -69,7 +62,7 @@ public class VideoPlaybackService : IDisposable
         catch (Exception ex)
         {
             log.Error(ex, "[EDR] Failed to start video playback");
-            chat.Print("[EDR] Failed to start video playback");
+            chat.Print("[EDR] Failed to start video playback: " + ex.Message);
             return false;
         }
     }
@@ -95,13 +88,14 @@ public class VideoPlaybackService : IDisposable
                 playbackTimer = null;
             }
 
-            if (videoForm != null)
-            {
-                videoForm.Close();
-                videoForm.Dispose();
-                videoForm = null;
-                pictureBox = null;
-            }
+            // Skip UI cleanup to avoid threading issues
+            // if (videoForm != null)
+            // {
+            //     videoForm.Close();
+            //     videoForm.Dispose();
+            //     videoForm = null;
+            //     pictureBox = null;
+            // }
 
             isPlaying = false;
             currentVideoPath = "";
@@ -201,37 +195,24 @@ public class VideoPlaybackService : IDisposable
     /// </summary>
     private string BuildVLCArguments(string videoPath)
     {
-        var args = $"--video-x=0 --video-y=0 --video-width={config.VideoWindowWidth} --video-height={config.VideoWindowHeight}";
+        // VLC arguments - completely borderless, positioned, play once and close
+        var args = "-I dummy --no-video-deco --no-embedded-video --play-and-exit";
+        
+        // Position window (optional - can be configured)
+        args += $" --video-x={config.VideoWindowX} --video-y={config.VideoWindowY}";
+        
+        // Size window to video dimensions
+        args += $" --width={config.VideoWindowWidth} --height={config.VideoWindowHeight}";
         
         // Add audio settings
         if (config.MuteAudio)
         {
             args += " --no-audio";
         }
-        else
-        {
-            args += $" --volume={(int)(config.Volume * 100)}";
-        }
 
-        // Add loop setting
-        if (config.LoopVideo)
-        {
-            args += " --loop";
-        }
-
-        // Add playback speed
-        if (config.PlaybackSpeed != 1.0f)
-        {
-            args += $" --rate={config.PlaybackSpeed}";
-        }
-
-        // Add direct3D output for better performance
-        if (config.EnableGpuAcceleration)
-        {
-            args += " --directx-hw-accel";
-        }
-
-        args += $" \"{videoPath}\"";
+        // Properly escape special characters in filename
+        var escapedPath = videoPath.Replace("[", "\\[").Replace("]", "\\]");
+        args += $" \"{escapedPath}\"";
         
         return args;
     }
@@ -328,16 +309,16 @@ public class VideoPlaybackService : IDisposable
 
         try
         {
-            var analysis = FFProbe.Analyse(videoPath);
+            var fileInfo = new FileInfo(videoPath);
             
             return new VideoInfo
             {
-                Duration = analysis.Duration,
-                Width = analysis.VideoStreams.FirstOrDefault()?.Width ?? 0,
-                Height = analysis.VideoStreams.FirstOrDefault()?.Height ?? 0,
-                FrameRate = analysis.VideoStreams.FirstOrDefault()?.FrameRate ?? 0,
-                Codec = analysis.VideoStreams.FirstOrDefault()?.CodecName ?? "",
-                FileSize = new FileInfo(videoPath).Length
+                Duration = TimeSpan.Zero, // Can't get duration without FFmpeg
+                Width = 0, // Can't get dimensions without FFmpeg
+                Height = 0,
+                FrameRate = 0,
+                Codec = Path.GetExtension(videoPath).ToUpperInvariant().TrimStart('.'),
+                FileSize = fileInfo.Length
             };
         }
         catch (Exception ex)

@@ -14,25 +14,11 @@
         "resolved": "1.2.39",
         "contentHash": "fcFN01tDTIQqDuTwr1jUQK/geofiwjG5DycJQOnC72i1SsLAk1ELe+apBOuZ11UMQG8YKFZG1FgvjZPbqHyatg=="
       },
-      "FFMpegCore": {
-        "type": "Direct",
-        "requested": "[4.8.0, )",
-        "resolved": "4.8.0",
-        "contentHash": "VGrvNQpM3MajTWUR7ir9DmLgTiX2e5PnV3vkbB/sRNgzIzaALUQhHdwJHH8h0GRFXeGeTMJny6ghYPhYSHRMGg==",
-        "dependencies": {
-          "Instances": "2.0.0"
-        }
-      },
       "ImGui.NET": {
         "type": "Direct",
         "requested": "[1.90.1.1, )",
         "resolved": "1.90.1.1",
         "contentHash": "/VNgkRywtXV72cpxtBj09nZX9Yx+xG3NxiwEEXPVcK+pHKHA31cPJKy425tDGj68tgRbCS+C+DG8puBj3iJ4zA=="
-      },
-      "Instances": {
-        "type": "Transitive",
-        "resolved": "2.0.0",
-        "contentHash": "VbqsIaTnr64kgA/HGIv4UTbbNaKbCDiBb6And5TC7l8lSV+OVivL0P4xjG8StGRBAYARKV3QETD3lpNSLEmlHQ=="
       }
     }
   }

@@ -22,6 +22,8 @@ public class Configuration : IPluginConfiguration
     public float PlaybackSpeed { get; set; } = 1.0f;
 
     // Video display settings
+    public int VideoWindowX { get; set; } = 100;
+    public int VideoWindowY { get; set; } = 100;
     public int VideoWindowWidth { get; set; } = 640;
     public int VideoWindowHeight { get; set; } = 480;
     public bool MaintainAspectRatio { get; set; } = true;
