@@ -3,6 +3,8 @@ using Dalamud.Plugin;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using System.Collections.Generic;
+using ExperimentalDumpsterResearch.Services;
+using ExperimentalDumpsterResearch.Windows;
 
 namespace ExperimentalDumpsterResearch;
 
@@ -29,11 +31,12 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin(IDalamudPluginInterface pluginInterface)
     {
         // Initialize services following PlogonRules Section 2.1
-        commandManager = Service<ICommandManager>.Instance;
-        chatGui = Service<IChatGui>.Instance;
-        clientState = Service<IClientState>.Instance;
-        framework = Service<IFramework>.Instance;
-        pluginLog = Service<IPluginLog>.Instance;
+        var serviceManager = pluginInterface.GetServiceProvider();
+        commandManager = serviceManager.GetRequiredService<ICommandManager>();
+        chatGui = serviceManager.GetRequiredService<IChatGui>();
+        clientState = serviceManager.GetRequiredService<IClientState>();
+        framework = serviceManager.GetRequiredService<IFramework>();
+        pluginLog = serviceManager.GetRequiredService<IPluginLog>();
 
         configuration = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         configuration.Initialize(pluginInterface);
@@ -126,4 +129,6 @@ public sealed class Plugin : IDalamudPlugin
     {
         configWindow.IsOpen = true;
     }
+
+    public IChatGui GetChatGui() => chatGui;
 }

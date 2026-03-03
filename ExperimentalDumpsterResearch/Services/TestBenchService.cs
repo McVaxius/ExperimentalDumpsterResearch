@@ -185,7 +185,7 @@ public class TestBenchService : IDisposable
         }
 
         var fileExists = File.Exists(config.TestVideoPath);
-        var videoInfo = fileExists ? await videoService.GetVideoInfo(config.TestVideoPath) : null;
+        var videoInfo = fileExists ? videoService.GetVideoInfo(config.TestVideoPath) : null;
         
         stopwatch.Stop();
 

@@ -1,7 +1,9 @@
 using Dalamud.Interface;
 using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
 using ImGuiNET;
 using System.Numerics;
+using static Dalamud.Interface.Utility.Raii;
 
 namespace ExperimentalDumpsterResearch.Windows;
 
@@ -9,6 +11,7 @@ public class ConfigWindow : Window, IDisposable
 {
     private readonly Configuration config;
     private readonly Plugin plugin;
+    private readonly IChatGui chatGui;
 
     public ConfigWindow(Plugin plugin, Configuration configuration) 
         : base("EDR Configuration", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
@@ -18,6 +21,7 @@ public class ConfigWindow : Window, IDisposable
         
         this.config = configuration;
         this.plugin = plugin;
+        this.chatGui = plugin.GetChatGui();
     }
 
     public void Dispose() { }
@@ -46,7 +50,7 @@ public class ConfigWindow : Window, IDisposable
             if (ImGui.Button("Browse...##video"))
             {
                 // File browser would go here
-                Service<ChatGui>.Instance.Print("[EDR] Manual file path entry required");
+                chatGui.Print("[EDR] Manual file path entry required");
             }
 
             ImGui.Checkbox("Loop Video", ref config.LoopVideo);
@@ -186,8 +190,8 @@ public class ConfigWindow : Window, IDisposable
         // Save/Reset buttons
         if (ImGui.Button("Save Configuration"))
         {
-            plugin.SaveConfig();
-            Service<ChatGui>.Instance.Print("[EDR] Configuration saved");
+            config.Save();
+            chatGui.Print("[EDR] Configuration saved");
         }
 
         ImGui.SameLine();
@@ -228,8 +232,8 @@ public class ConfigWindow : Window, IDisposable
                 Progress = 0
             });
             
-            plugin.SaveConfig();
-            Service<ChatGui>.Instance.Print("[EDR] Configuration reset to defaults");
+            config.Save();
+            chatGui.Print("[EDR] Configuration reset to defaults");
         }
 
         // Info section

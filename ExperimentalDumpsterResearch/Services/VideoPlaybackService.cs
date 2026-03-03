@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using FFMpegCore;
+using Timer = System.Windows.Forms.Timer;
 
 namespace ExperimentalDumpsterResearch.Services;
 
@@ -320,14 +321,14 @@ public class VideoPlaybackService : IDisposable
     /// <summary>
     /// Get video file information using FFmpeg
     /// </summary>
-    public async Task<VideoInfo?> GetVideoInfo(string videoPath)
+    public VideoInfo? GetVideoInfo(string videoPath)
     {
         if (!File.Exists(videoPath))
             return null;
 
         try
         {
-            var analysis = await FFProbe.AnalyzeAsync(videoPath);
+            var analysis = FFProbe.Analyze(videoPath);
             
             return new VideoInfo
             {

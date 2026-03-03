@@ -6,6 +6,8 @@ using System;
 using System.Numerics;
 using System.IO;
 using System.Linq;
+using ExperimentalDumpsterResearch.Services;
+using static Dalamud.Interface.Utility.Raii;
 
 namespace ExperimentalDumpsterResearch.Windows;
 
@@ -14,6 +16,7 @@ public class MainWindow : Window, IDisposable
     private readonly Configuration config;
     private readonly VideoPlaybackService videoService;
     private readonly TestBenchService testBenchService;
+    private readonly IChatGui chatGui;
 
     private string videoPathInput = "";
     private bool showTestResults = false;
@@ -28,6 +31,7 @@ public class MainWindow : Window, IDisposable
         this.config = configuration;
         this.videoService = videoService;
         this.testBenchService = testBenchService;
+        this.chatGui = plugin.GetChatGui();
     }
 
     public void Dispose() { }
@@ -60,7 +64,7 @@ public class MainWindow : Window, IDisposable
             if (ImGui.Button("Browse..."))
             {
                 // This would open a file dialog
-                Service<ChatGui>.Instance.Print("[EDR] Use /edr config to set video path");
+                chatGui.Print("[EDR] Use /edr config to set video path");
             }
 
             if (ImGui.Button("Play Video"))
@@ -75,7 +79,7 @@ public class MainWindow : Window, IDisposable
                 }
                 else
                 {
-                    Service<ChatGui>.Instance.Print("[EDR] No video file specified");
+                    chatGui.Print("[EDR] No video file specified");
                 }
             }
 
@@ -135,8 +139,8 @@ public class MainWindow : Window, IDisposable
             ImGui.SameLine();
             if (ImGui.Button("FFmpeg Test"))
             {
-                Service<ChatGui>.Instance.Print($"[EDR] VLC Available: {videoService.IsVLCAvailable()}");
-                Service<ChatGui>.Instance.Print($"[EDR] FFmpeg Available: {videoService.IsFFmpegAvailable()}");
+                chatGui.Print($"[EDR] VLC Available: {videoService.IsVLCAvailable()}");
+                chatGui.Print($"[EDR] FFmpeg Available: {videoService.IsFFmpegAvailable()}");
             }
 
             // Test results toggle
@@ -148,11 +152,11 @@ public class MainWindow : Window, IDisposable
         // Research projects section
         if (ImGui.CollapsingHeader("🔬 Research Projects"))
         {
-            foreach (var project in config.ActiveProjects)
+            foreach (var researchProject in config.ActiveProjects)
             {
-                ImGui.PushID(project.Name);
+                ImGui.PushID(researchProject.Name);
                 
-                var statusColor = project.Status switch
+                var statusColor = researchProject.Status switch
                 {
                     "Active" => new Vector4(0, 1, 0, 1),
                     "Completed" => new Vector4(0, 0.5f, 1, 1),
@@ -160,13 +164,13 @@ public class MainWindow : Window, IDisposable
                     _ => new Vector4(0.7f, 0.7f, 0.7f, 1)
                 };
 
-                ImGui.TextColored(statusColor, $"{project.Name} - {project.Status}");
-                ImGui.Text($"  {project.Description}");
-                ImGui.ProgressBar(project.Progress / 100f, new Vector2(150, 15));
+                ImGui.TextColored(statusColor, $"{researchProject.Name} - {researchProject.Status}");
+                ImGui.Text($"  {researchProject.Description}");
+                ImGui.ProgressBar(researchProject.Progress / 100f, new Vector2(150, 15));
                 
-                if (ImGui.Button($"Select##{project.Name}"))
+                if (ImGui.Button($"Select##{researchProject.Name}"))
                 {
-                    config.CurrentProject = project.Name;
+                    config.CurrentProject = researchProject.Name;
                 }
                 
                 ImGui.PopID();
@@ -211,13 +215,13 @@ public class MainWindow : Window, IDisposable
         if (ImGui.Button("Config"))
         {
             // Open config window
-            Service<ChatGui>.Instance.Print("[EDR] Use /edr config to open configuration");
+            chatGui.Print("[EDR] Use /edr config to open configuration");
         }
 
         ImGui.SameLine();
         if (ImGui.Button("Help"))
         {
-            Service<ChatGui>.Instance.Print("[EDR] Commands: /edr config, /edr test, /edr play, /edr stop, /edr bench");
+            chatGui.Print("[EDR] Commands: /edr config, /edr test, /edr play, /edr stop, /edr bench");
         }
     }
 }
