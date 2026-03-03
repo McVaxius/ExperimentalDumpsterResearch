@@ -1,0 +1,26 @@
+<Project Sdk="Dalamud.NET.Sdk/14.0.2">
+  <PropertyGroup>
+    <Version>0.0.0.1</Version>
+    <PackageProjectUrl>https://github.com/xa-io</PackageProjectUrl>
+    <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <AssemblyName>ExperimentalDumpsterResearch</AssemblyName>
+    <RootNamespace>ExperimentalDumpsterResearch</RootNamespace>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FFMpegCore" Version="4.8.0" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="FFXIVClientStructs">
+      <HintPath>$(AppData)\XIVLauncher\addon\hooks\FFXIVClientStructs.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>

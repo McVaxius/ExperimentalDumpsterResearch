@@ -1,0 +1,223 @@
+using Dalamud.Interface;
+using Dalamud.Interface.Windowing;
+using Dalamud.Plugin.Services;
+using ImGuiNET;
+using System;
+using System.Numerics;
+using System.IO;
+using System.Linq;
+
+namespace ExperimentalDumpsterResearch.Windows;
+
+public class MainWindow : Window, IDisposable
+{
+    private readonly Configuration config;
+    private readonly VideoPlaybackService videoService;
+    private readonly TestBenchService testBenchService;
+
+    private string videoPathInput = "";
+    private bool showTestResults = false;
+
+    public MainWindow(Plugin plugin, Configuration configuration, 
+        VideoPlaybackService videoService, TestBenchService testBenchService) 
+        : base("Experimental Dumpster Research", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+    {
+        Size = new Vector2(500, 600);
+        SizeCondition = ImGuiCond.FirstUseEver;
+        
+        this.config = configuration;
+        this.videoService = videoService;
+        this.testBenchService = testBenchService;
+    }
+
+    public void Dispose() { }
+
+    public override void Draw()
+    {
+        ImGui.Text("🗑️ Experimental Dumpster Research");
+        ImGui.Text("Researching new ways to cook garbage...");
+        ImGui.Separator();
+
+        // Current project status
+        ImGui.Text($"Current Project: {config.CurrentProject}");
+        var project = config.ActiveProjects.FirstOrDefault(p => p.Name == config.CurrentProject);
+        if (project != null)
+        {
+            ImGui.Text($"Status: {project.Status}");
+            ImGui.Text($"Progress: {project.Progress}%");
+            ImGui.ProgressBar(project.Progress / 100f, new Vector2(200, 20));
+        }
+
+        ImGui.Separator();
+
+        // Video playback section
+        if (ImGui.CollapsingHeader("🎬 Video Playback Test"))
+        {
+            // Video file selection
+            ImGui.Text("Video File:");
+            ImGui.InputText("##videopath", ref videoPathInput, 500);
+            ImGui.SameLine();
+            if (ImGui.Button("Browse..."))
+            {
+                // This would open a file dialog
+                Service<ChatGui>.Instance.Print("[EDR] Use /edr config to set video path");
+            }
+
+            if (ImGui.Button("Play Video"))
+            {
+                if (!string.IsNullOrEmpty(videoPathInput))
+                {
+                    _ = videoService.PlayVideo(videoPathInput);
+                }
+                else if (!string.IsNullOrEmpty(config.TestVideoPath))
+                {
+                    _ = videoService.PlayVideo(config.TestVideoPath);
+                }
+                else
+                {
+                    Service<ChatGui>.Instance.Print("[EDR] No video file specified");
+                }
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Stop Video"))
+            {
+                videoService.StopVideo();
+            }
+
+            // Video status
+            ImGui.Text($"Status: {(videoService.IsPlaying ? "Playing" : "Stopped")}");
+            if (!string.IsNullOrEmpty(videoService.CurrentVideo))
+            {
+                ImGui.Text($"Current: {Path.GetFileName(videoService.CurrentVideo)}");
+            }
+
+            // FFmpeg status
+            var vlcAvailable = videoService.IsVLCAvailable();
+            var ffmpegAvailable = videoService.IsFFmpegAvailable();
+            ImGui.Text($"VLC: {(vlcAvailable ? "Available" : "Not Found")}");
+            ImGui.Text($"FFmpeg: {(ffmpegAvailable ? "Available" : "Not Found")}");
+            if (!vlcAvailable)
+            {
+                ImGui.TextColored(new Vector4(1, 0.5f, 0, 1), "Please install VLC for video playback");
+                ImGui.Text("Download from: https://www.videolan.org/vlc/");
+            }
+        }
+
+        ImGui.Separator();
+
+        // Test bench section
+        if (ImGui.CollapsingHeader("🧪 Test Bench"))
+        {
+            if (ImGui.Button("Run Current Test"))
+            {
+                _ = testBenchService.RunCurrentTest();
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Performance Benchmark"))
+            {
+                _ = testBenchService.RunPerformanceBenchmark();
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Clear Results"))
+            {
+                testBenchService.ClearTestResults();
+            }
+
+            // Quick tests
+            if (ImGui.Button("Quick Video Test"))
+            {
+                _ = testBenchService.StartVideoTest();
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("FFmpeg Test"))
+            {
+                Service<ChatGui>.Instance.Print($"[EDR] VLC Available: {videoService.IsVLCAvailable()}");
+                Service<ChatGui>.Instance.Print($"[EDR] FFmpeg Available: {videoService.IsFFmpegAvailable()}");
+            }
+
+            // Test results toggle
+            ImGui.Checkbox("Show Test Results", ref showTestResults);
+        }
+
+        ImGui.Separator();
+
+        // Research projects section
+        if (ImGui.CollapsingHeader("🔬 Research Projects"))
+        {
+            foreach (var project in config.ActiveProjects)
+            {
+                ImGui.PushID(project.Name);
+                
+                var statusColor = project.Status switch
+                {
+                    "Active" => new Vector4(0, 1, 0, 1),
+                    "Completed" => new Vector4(0, 0.5f, 1, 1),
+                    "Failed" => new Vector4(1, 0, 0, 1),
+                    _ => new Vector4(0.7f, 0.7f, 0.7f, 1)
+                };
+
+                ImGui.TextColored(statusColor, $"{project.Name} - {project.Status}");
+                ImGui.Text($"  {project.Description}");
+                ImGui.ProgressBar(project.Progress / 100f, new Vector2(150, 15));
+                
+                if (ImGui.Button($"Select##{project.Name}"))
+                {
+                    config.CurrentProject = project.Name;
+                }
+                
+                ImGui.PopID();
+            }
+        }
+
+        ImGui.Separator();
+
+        // System info
+        if (ImGui.CollapsingHeader("💻 System Info"))
+        {
+            ImGui.Text($"Plugin Version: {config.Version}");
+            ImGui.Text($"Framework: .NET 10");
+            ImGui.Text($"Video Backend: {config.VideoBackend}");
+            ImGui.Text($"GPU Acceleration: {(config.EnableGpuAcceleration ? "Enabled" : "Disabled")}");
+            ImGui.Text($"Multi-threading: {(config.EnableMultiThreading ? "Enabled" : "Disabled")}");
+        }
+
+        // Test results display
+        if (showTestResults)
+        {
+            ImGui.Separator();
+            ImGui.Text("📊 Recent Test Results:");
+            
+            var results = testBenchService.GetTestResults().TakeLast(10).ToList();
+            foreach (var result in results)
+            {
+                var statusColor = result.Success ? new Vector4(0, 1, 0, 1) : new Vector4(1, 0, 0, 1);
+                var duration = result.Duration?.TotalMilliseconds.ToString("F0") ?? "N/A";
+                
+                ImGui.TextColored(statusColor, $"{result.TestName}: {duration}ms");
+                if (config.ShowDebugInfo && !string.IsNullOrEmpty(result.Details))
+                {
+                    ImGui.Text($"  {result.Details}");
+                }
+            }
+        }
+
+        ImGui.Separator();
+
+        // Actions
+        if (ImGui.Button("Config"))
+        {
+            // Open config window
+            Service<ChatGui>.Instance.Print("[EDR] Use /edr config to open configuration");
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Help"))
+        {
+            Service<ChatGui>.Instance.Print("[EDR] Commands: /edr config, /edr test, /edr play, /edr stop, /edr bench");
+        }
+    }
+}

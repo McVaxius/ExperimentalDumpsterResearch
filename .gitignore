@@ -1,0 +1,53 @@
+# Binaries and build outputs
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+ARM/
+ARM64/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# User-specific files
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Mono auto generated files
+mono_crash.*
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin used on file shares
+$RECYCLE.BIN/
+
+# Mac
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+
+# Dalamud
+*.pdb
+*.deps.json
+*.runtimeconfig.json
+runtimes/
+
+# Backup files
+backups/
+*.bak
+*.backup
