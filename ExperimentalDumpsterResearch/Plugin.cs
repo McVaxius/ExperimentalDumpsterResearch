@@ -44,6 +44,11 @@ public sealed class Plugin : IDalamudPlugin
         configuration.Initialize(pluginInterface);
         configuration.SetPluginInterface(pluginInterface);
 
+        // Initialize IPC providers
+        _playVideoIpc = pluginInterface.GetIpcProvider<string, string>("EDR.PlayVideo");
+        _stopVideoIpc = pluginInterface.GetIpcProvider<bool>("EDR.StopVideo");
+        _getVideosIpc = pluginInterface.GetIpcProvider<List<string>>("EDR.GetVideos");
+
         // Initialize experimental services
         videoService = new VideoPlaybackService(configuration, Log, ChatGui);
         testBenchService = new TestBenchService(configuration, videoService, Log, ChatGui);
@@ -53,6 +58,11 @@ public sealed class Plugin : IDalamudPlugin
 
         windowSystem.AddWindow(mainWindow);
         windowSystem.AddWindow(configWindow);
+
+        // Setup IPC actions
+        _playVideoIpc.RegisterFunc(PlayVideoIpc);
+        _stopVideoIpc.RegisterFunc(StopVideoIpc);
+        _getVideosIpc.RegisterFunc(GetEmbeddedVideos);
 
         // Command registration following PlogonRules Section 5
         CommandManager.AddHandler("/dumpster", new CommandInfo(OnCommand)
@@ -73,6 +83,11 @@ public sealed class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        // Unregister IPC
+        _playVideoIpc?.UnregisterFunc();
+        _stopVideoIpc?.UnregisterFunc();
+        _getVideosIpc?.UnregisterFunc();
+        
         windowSystem.RemoveAllWindows();
         mainWindow?.Dispose();
         configWindow?.Dispose();
@@ -109,7 +124,16 @@ public sealed class Plugin : IDalamudPlugin
                     _ = testBenchService.RunCurrentTest();
                     break;
                 case "play":
-                    PlayVideo();
+                    if (!string.IsNullOrEmpty(args) && args != "play")
+                    {
+                        // Play embedded video by name
+                        PlayEmbeddedVideo(args);
+                    }
+                    else
+                    {
+                        // Play configured video
+                        PlayVideo();
+                    }
                     break;
                 case "stop":
                     StopVideo();
@@ -127,15 +151,22 @@ public sealed class Plugin : IDalamudPlugin
                 case "setvideo":
                     SetVideoCommand();
                     break;
+                case "videos":
+                    ListEmbeddedVideos();
+                    break;
                 default:
                     if (args.ToLower().StartsWith("setvideo "))
                     {
                         SetVideoPath(args.Substring(9).Trim());
                     }
+                    else if (args.ToLower().StartsWith("play "))
+                    {
+                        PlayEmbeddedVideo(args.Substring(5).Trim());
+                    }
                     else
                     {
                         ChatGui.Print($"[EDR] Unknown command: {args}");
-                        ChatGui.Print("[EDR] Available: status, play, stop, forcestop, test, bench, overlay, setvideo <path>");
+                        ChatGui.Print("[EDR] Available: status, play, play <name>, stop, forcestop, test, bench, overlay, setvideo <path>, videos");
                     }
                     break;
             }
@@ -153,7 +184,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             if (string.IsNullOrEmpty(configuration.VideoPath))
             {
-                ChatGui.Print("[EDR] No video file set. Use: /edr setvideo <path>");
+                ChatGui.Print("[EDR] No video file set. Use: /edr setvideo <path> or /edr play <name>");
                 return;
             }
 
@@ -174,6 +205,57 @@ public sealed class Plugin : IDalamudPlugin
         {
             Log.Error(ex, "[EDR] Play command failed");
             ChatGui.Print("[EDR] Failed to start video - check /xllog");
+        }
+    }
+
+    private void PlayEmbeddedVideo(string videoName)
+    {
+        try
+        {
+            var videoPath = GetEmbeddedVideoPath(videoName);
+            if (string.IsNullOrEmpty(videoPath))
+            {
+                ChatGui.Print($"[EDR] Embedded video not found: {videoName}");
+                ChatGui.Print("[EDR] Use: /edr videos to see available videos");
+                return;
+            }
+
+            // Show fake overlay messages
+            ShowFakeOverlay();
+
+            ChatGui.Print($"[EDR] Starting embedded video: {videoName}");
+            _ = videoService.PlayVideo(videoPath);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EDR] Play embedded video failed");
+            ChatGui.Print("[EDR] Failed to start embedded video - check /xllog");
+        }
+    }
+
+    private void ListEmbeddedVideos()
+    {
+        try
+        {
+            var videos = GetAvailableEmbeddedVideos();
+            if (videos.Count == 0)
+            {
+                ChatGui.Print("[EDR] No embedded videos found");
+                ChatGui.Print("[EDR] Create a 'videos' folder in your plugin config directory and add .mp4 files");
+                return;
+            }
+
+            ChatGui.Print($"[EDR] Found {videos.Count} embedded videos:");
+            foreach (var video in videos)
+            {
+                ChatGui.Print($"  - {video}");
+            }
+            ChatGui.Print("[EDR] Use: /edr play <name> to play an embedded video");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EDR] List videos failed");
+            ChatGui.Print("[EDR] Failed to list videos - check /xllog");
         }
     }
 
@@ -365,4 +447,70 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     public IChatGui GetChatGui() => ChatGui;
+
+    // IPC Methods
+    private string PlayVideoIpc(string videoName)
+    {
+        try
+        {
+            var videoPath = GetEmbeddedVideoPath(videoName);
+            if (string.IsNullOrEmpty(videoPath))
+            {
+                return $"Video not found: {videoName}";
+            }
+
+            _ = videoService.PlayVideo(videoPath);
+            return $"Playing video: {videoName}";
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EDR] IPC PlayVideo failed");
+            return $"Error: {ex.Message}";
+        }
+    }
+
+    private bool StopVideoIpc()
+    {
+        try
+        {
+            videoService.StopVideo();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EDR] IPC StopVideo failed");
+            return false;
+        }
+    }
+
+    private List<string> GetEmbeddedVideos()
+    {
+        return GetAvailableEmbeddedVideos();
+    }
+
+    // Embedded Video Management
+    private string GetEmbeddedVideoPath(string videoName)
+    {
+        var pluginDir = PluginInterface.ConfigDirectory.FullName;
+        var videosDir = Path.Combine(pluginDir, "videos");
+        var videoPath = Path.Combine(videosDir, videoName);
+        
+        return File.Exists(videoPath) ? videoPath : string.Empty;
+    }
+
+    private List<string> GetAvailableEmbeddedVideos()
+    {
+        var videos = new List<string>();
+        var videosDir = Path.Combine(PluginInterface.ConfigDirectory.FullName, "videos");
+        
+        if (Directory.Exists(videosDir))
+        {
+            videos.AddRange(Directory.GetFiles(videosDir, "*.mp4")
+                                        .Select(Path.GetFileName)
+                                        .Where(name => name != null)
+                                        .OrderBy(name => name));
+        }
+        
+        return videos;
+    }
 }
