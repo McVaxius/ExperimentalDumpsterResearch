@@ -22,4 +22,11 @@
       <HintPath>$(AppData)\XIVLauncher\addon\hooks\FFXIVClientStructs.dll</HintPath>
     </Reference>
   </ItemGroup>
+
+  <!-- Include videos in the build output -->
+  <ItemGroup>
+    <Content Include="videos\*.mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

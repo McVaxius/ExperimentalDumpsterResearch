@@ -154,6 +154,9 @@ public sealed class Plugin : IDalamudPlugin
                 case "videos":
                     ListEmbeddedVideos();
                     break;
+                case "setfolder":
+                    SetVideosFolder();
+                    break;
                 default:
                     if (args.ToLower().StartsWith("setvideo "))
                     {
@@ -163,10 +166,14 @@ public sealed class Plugin : IDalamudPlugin
                     {
                         PlayEmbeddedVideo(args.Substring(5).Trim());
                     }
+                    else if (args.ToLower().StartsWith("setfolder "))
+                    {
+                        SetVideosFolder(args.Substring(10).Trim());
+                    }
                     else
                     {
                         ChatGui.Print($"[EDR] Unknown command: {args}");
-                        ChatGui.Print("[EDR] Available: status, play, play <name>, stop, forcestop, test, bench, overlay, setvideo <path>, videos");
+                        ChatGui.Print("[EDR] Available: status, play, play <name>, stop, forcestop, test, bench, overlay, setvideo <path>, videos, setfolder <name>");
                     }
                     break;
             }
@@ -240,12 +247,13 @@ public sealed class Plugin : IDalamudPlugin
             var videos = GetAvailableEmbeddedVideos();
             if (videos.Count == 0)
             {
-                ChatGui.Print("[EDR] No embedded videos found");
-                ChatGui.Print("[EDR] Create a 'videos' folder in your plugin config directory and add .mp4 files");
+                ChatGui.Print($"[EDR] No embedded videos found in '{configuration.EmbeddedVideosFolder}' folder");
+                ChatGui.Print($"[EDR] Create a '{configuration.EmbeddedVideosFolder}' folder next to your plugin DLL and add .mp4 files");
+                ChatGui.Print("[EDR] Use: /edr setfolder <name> to change the folder name");
                 return;
             }
 
-            ChatGui.Print($"[EDR] Found {videos.Count} embedded videos:");
+            ChatGui.Print($"[EDR] Found {videos.Count} embedded videos in '{configuration.EmbeddedVideosFolder}':");
             foreach (var video in videos)
             {
                 ChatGui.Print($"  - {video}");
@@ -256,6 +264,35 @@ public sealed class Plugin : IDalamudPlugin
         {
             Log.Error(ex, "[EDR] List videos failed");
             ChatGui.Print("[EDR] Failed to list videos - check /xllog");
+        }
+    }
+
+    private void SetVideosFolder()
+    {
+        ChatGui.Print($"[EDR] Current videos folder: '{configuration.EmbeddedVideosFolder}'");
+        ChatGui.Print("[EDR] Use: /edr setfolder <name> to change the folder name");
+    }
+
+    private void SetVideosFolder(string folderName)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(folderName))
+            {
+                ChatGui.Print("[EDR] Folder name cannot be empty");
+                return;
+            }
+
+            configuration.EmbeddedVideosFolder = folderName.Trim();
+            PluginInterface.SavePluginConfig(configuration);
+            
+            ChatGui.Print($"[EDR] Videos folder set to: '{configuration.EmbeddedVideosFolder}'");
+            ChatGui.Print("[EDR] Use: /edr videos to see videos in the new folder");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EDR] Set videos folder failed");
+            ChatGui.Print("[EDR] Failed to set folder - check /xllog");
         }
     }
 
@@ -491,8 +528,9 @@ public sealed class Plugin : IDalamudPlugin
     // Embedded Video Management
     private string GetEmbeddedVideoPath(string videoName)
     {
-        var pluginDir = PluginInterface.ConfigDirectory.FullName;
-        var videosDir = Path.Combine(pluginDir, "videos");
+        // Look in the same directory as the plugin DLL
+        var pluginDir = PluginInterface.AssemblyLocation.DirectoryName ?? "";
+        var videosDir = Path.Combine(pluginDir, configuration.EmbeddedVideosFolder);
         var videoPath = Path.Combine(videosDir, videoName);
         
         return File.Exists(videoPath) ? videoPath : string.Empty;
@@ -501,14 +539,27 @@ public sealed class Plugin : IDalamudPlugin
     private List<string> GetAvailableEmbeddedVideos()
     {
         var videos = new List<string>();
-        var videosDir = Path.Combine(PluginInterface.ConfigDirectory.FullName, "videos");
+        // Look in the same directory as the plugin DLL
+        var pluginDir = PluginInterface.AssemblyLocation.DirectoryName ?? "";
+        var videosDir = Path.Combine(pluginDir, configuration.EmbeddedVideosFolder);
+        
+        // Debug logging
+        Log.Information($"[EDR] Looking for videos in: {videosDir}");
+        Log.Information($"[EDR] Plugin directory: {pluginDir}");
+        Log.Information($"[EDR] Directory exists: {Directory.Exists(videosDir)}");
         
         if (Directory.Exists(videosDir))
         {
-            videos.AddRange(Directory.GetFiles(videosDir, "*.mp4")
+            var files = Directory.GetFiles(videosDir, "*.mp4");
+            Log.Information($"[EDR] Found {files.Length} mp4 files");
+            videos.AddRange(files
                                         .Select(Path.GetFileName)
                                         .Where(name => name != null)
                                         .OrderBy(name => name));
+        }
+        else
+        {
+            Log.Information($"[EDR] Videos directory does not exist: {videosDir}");
         }
         
         return videos;

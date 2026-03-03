@@ -21,6 +21,9 @@ public class Configuration : IPluginConfiguration
     public bool MuteAudio { get; set; } = true;
     public float PlaybackSpeed { get; set; } = 1.0f;
 
+    // Embedded video settings
+    public string EmbeddedVideosFolder { get; set; } = "videos";
+
     // Video display settings
     public int VideoWindowX { get; set; } = 100;
     public int VideoWindowY { get; set; } = 100;
