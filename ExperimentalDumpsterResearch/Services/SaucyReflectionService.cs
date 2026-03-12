@@ -33,8 +33,16 @@ public class SaucyReflectionService
             var saucyPlugin = GetSaucyPlugin();
             if (saucyPlugin == null)
             {
-                log.Warning("[SaucyReflection] Saucy plugin not found");
-                return false;
+                log.Warning("[SaucyReflection] Saucy plugin not found - trying alternative methods");
+                
+                // Try alternative method - check OtherPlugins directly
+                saucyPlugin = GetSaucyPluginAlternative();
+                if (saucyPlugin == null)
+                {
+                    log.Warning("[SaucyReflection] Saucy plugin not found with any method");
+                    LogAvailablePlugins();
+                    return false;
+                }
             }
 
             log.Information("[SaucyReflection] Found Saucy plugin: {saucyType}", saucyPlugin.GetType().Name);
@@ -54,6 +62,7 @@ public class SaucyReflectionService
             if (currentValue == null)
             {
                 log.Warning("[SaucyReflection] Could not read EnableAutoMiniCactpot setting");
+                LogConfigurationProperties(config);
                 return false;
             }
 
@@ -117,6 +126,103 @@ public class SaucyReflectionService
             log.Error(ex, "[SaucyReflection] Error getting Saucy plugin");
         }
         return null;
+    }
+
+    private object? GetSaucyPluginAlternative()
+    {
+        try
+        {
+            // Try to access OtherPlugins property directly
+            var otherPluginsProp = pluginInterface.GetType().GetProperty("OtherPlugins");
+            if (otherPluginsProp?.GetValue(pluginInterface) is System.Collections.IEnumerable plugins)
+            {
+                foreach (var plugin in plugins)
+                {
+                    var nameProp = plugin.GetType().GetProperty("InternalName");
+                    if (nameProp?.GetValue(plugin)?.ToString().Equals("Saucy", StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        var instanceProp = plugin.GetType().GetProperty("Instance");
+                        return instanceProp?.GetValue(plugin);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "[SaucyReflection] Error with alternative Saucy plugin access");
+        }
+        return null;
+    }
+
+    private void LogAvailablePlugins()
+    {
+        try
+        {
+            log.Information("[SaucyReflection] Searching for available plugins...");
+            
+            // Try PluginManager method
+            var pluginManagerProperty = pluginInterface.GetType().GetProperty("PluginManager");
+            if (pluginManagerProperty?.GetValue(pluginInterface) is object pluginManager)
+            {
+                var pluginsProperty = pluginManager.GetType().GetProperty("InstalledPlugins");
+                if (pluginsProperty?.GetValue(pluginManager) is System.Collections.IEnumerable plugins)
+                {
+                    var pluginList = new List<string>();
+                    foreach (var plugin in plugins)
+                    {
+                        var nameProp = plugin.GetType().GetProperty("InternalName");
+                        var name = nameProp?.GetValue(plugin)?.ToString() ?? "Unknown";
+                        pluginList.Add(name);
+                    }
+                    log.Information("[SaucyReflection] Found {count} plugins via PluginManager: {plugins}", pluginList.Count, string.Join(", ", pluginList));
+                }
+            }
+            
+            // Try OtherPlugins method
+            var otherPluginsProp = pluginInterface.GetType().GetProperty("OtherPlugins");
+            if (otherPluginsProp?.GetValue(pluginInterface) is System.Collections.IEnumerable otherPlugins)
+            {
+                var pluginList = new List<string>();
+                foreach (var plugin in otherPlugins)
+                {
+                    var nameProp = plugin.GetType().GetProperty("InternalName");
+                    var name = nameProp?.GetValue(plugin)?.ToString() ?? "Unknown";
+                    pluginList.Add(name);
+                }
+                log.Information("[SaucyReflection] Found {count} plugins via OtherPlugins: {plugins}", pluginList.Count, string.Join(", ", pluginList));
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "[SaucyReflection] Error logging available plugins");
+        }
+    }
+
+    private void LogConfigurationProperties(object config)
+    {
+        try
+        {
+            log.Information("[SaucyReflection] Configuration properties:");
+            var properties = config.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            foreach (var prop in properties.Take(10)) // Limit to first 10 to avoid spam
+            {
+                try
+                {
+                    var value = prop.GetValue(config);
+                    var valueStr = value?.ToString() ?? "null";
+                    if (valueStr.Length > 50) valueStr = valueStr.Substring(0, 47) + "...";
+                    log.Information("[SaucyReflection] - {propName}: {propType} = {valueStr}", prop.Name, prop.PropertyType.Name, valueStr);
+                }
+                catch
+                {
+                    log.Information("[SaucyReflection] - {propName}: {propType} = [error]", prop.Name, prop.PropertyType.Name);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "[SaucyReflection] Error logging configuration properties");
+        }
     }
 
     private object? GetSaucyConfiguration(object saucyPlugin)
