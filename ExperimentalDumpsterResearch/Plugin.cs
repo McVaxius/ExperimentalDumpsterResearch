@@ -166,6 +166,9 @@ public sealed class Plugin : IDalamudPlugin
                 case "plugins":
                     ListAvailablePlugins();
                     break;
+                case "testaccess":
+                    TestPluginAccess();
+                    break;
                 default:
                     if (args.ToLower().StartsWith("setvideo "))
                     {
@@ -182,7 +185,7 @@ public sealed class Plugin : IDalamudPlugin
                     else
                     {
                         ChatGui.Print($"[EDR] Unknown command: {args}");
-                        ChatGui.Print("[EDR] Available: status, play, play <name>, stop, forcestop, test, bench, overlay, setvideo <path>, videos, setfolder <name>, saucy, plugins");
+                        ChatGui.Print("[EDR] Available: status, play, play <name>, stop, forcestop, test, bench, overlay, setvideo <path>, videos, setfolder <name>, saucy, plugins, testaccess");
                     }
                     break;
             }
@@ -600,6 +603,108 @@ public sealed class Plugin : IDalamudPlugin
         {
             Log.Error(ex, "[EDR] Error testing Saucy reflection");
             ChatGui.Print("[EDR] Error testing Saucy reflection - check /xllog");
+        }
+    }
+
+    /// <summary>
+    /// Test basic plugin access patterns
+    /// </summary>
+    private void TestPluginAccess()
+    {
+        try
+        {
+            ChatGui.Print("[EDR] Testing basic plugin access patterns...");
+            
+            // Test 1: Check PluginInterface properties
+            ChatGui.Print("[EDR] Testing PluginInterface properties...");
+            var properties = PluginInterface.GetType().GetProperties(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            
+            foreach (var prop in properties.Take(10))
+            {
+                try
+                {
+                    var value = prop.GetValue(PluginInterface);
+                    ChatGui.Print($"[EDR] Property: {prop.Name} = {value?.ToString() ?? "null"}");
+                }
+                catch
+                {
+                    ChatGui.Print($"[EDR] Property: {prop.Name} = [error]");
+                }
+            }
+            
+            // Test 2: Try to get PluginManager
+            ChatGui.Print("[EDR] Testing PluginManager access...");
+            try
+            {
+                var pluginManagerProperty = PluginInterface.GetType().GetProperty("PluginManager");
+                if (pluginManagerProperty?.GetValue(PluginInterface) is object pluginManager)
+                {
+                    ChatGui.Print("[EDR] ✅ PluginManager found");
+                    
+                    var pluginsProperty = pluginManager.GetType().GetProperty("InstalledPlugins");
+                    if (pluginsProperty?.GetValue(pluginManager) is System.Collections.IEnumerable plugins)
+                    {
+                        var count = 0;
+                        foreach (var plugin in plugins)
+                        {
+                            count++;
+                            if (count <= 5) // Only show first 5 to avoid spam
+                            {
+                                var nameProp = plugin.GetType().GetProperty("InternalName");
+                                var name = nameProp?.GetValue(plugin)?.ToString() ?? "unknown";
+                                ChatGui.Print($"[EDR] Plugin {count}: {name}");
+                            }
+                        }
+                        ChatGui.Print($"[EDR] Total plugins found: {count}");
+                    }
+                }
+                else
+                {
+                    ChatGui.Print("[EDR] ❌ PluginManager not found");
+                }
+            }
+            catch (Exception ex)
+            {
+                ChatGui.Print($"[EDR] PluginManager access failed: {ex.Message}");
+            }
+            
+            // Test 3: Try to get OtherPlugins
+            ChatGui.Print("[EDR] Testing OtherPlugins access...");
+            try
+            {
+                var otherPluginsProp = PluginInterface.GetType().GetProperty("OtherPlugins");
+                if (otherPluginsProp?.GetValue(PluginInterface) is System.Collections.IEnumerable otherPlugins)
+                {
+                    ChatGui.Print("[EDR] ✅ OtherPlugins found");
+                    var count = 0;
+                    foreach (var plugin in otherPlugins)
+                    {
+                        count++;
+                        if (count <= 5) // Only show first 5 to avoid spam
+                        {
+                            var nameProp = plugin.GetType().GetProperty("InternalName");
+                            var name = nameProp?.GetValue(plugin)?.ToString() ?? "unknown";
+                            ChatGui.Print($"[EDR] OtherPlugin {count}: {name}");
+                        }
+                    }
+                    ChatGui.Print($"[EDR] Total other plugins found: {count}");
+                }
+                else
+                {
+                    ChatGui.Print("[EDR] ❌ OtherPlugins not found");
+                }
+            }
+            catch (Exception ex)
+            {
+                ChatGui.Print($"[EDR] OtherPlugins access failed: {ex.Message}");
+            }
+            
+            ChatGui.Print("[EDR] Plugin access test complete");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EDR] Error in TestPluginAccess");
+            ChatGui.Print("[EDR] Error in TestPluginAccess - check /xllog");
         }
     }
 
