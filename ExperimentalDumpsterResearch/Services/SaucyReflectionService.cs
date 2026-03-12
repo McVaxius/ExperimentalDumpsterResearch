@@ -193,7 +193,7 @@ public class SaucyReflectionService
         {
             log.Information("[SaucyReflection] Starting direct reflection search...");
             
-            // Use the reflection method we had before
+            // Method 1: Try PluginManager
             var pluginManagerProperty = pluginInterface.GetType().GetProperty("PluginManager");
             if (pluginManagerProperty?.GetValue(pluginInterface) is object pluginManager)
             {
@@ -211,10 +211,12 @@ public class SaucyReflectionService
                         log.Information("[SaucyReflection] Plugin {count}: '{name}' (Type: {type})", 
                             pluginCount, name, plugin.GetType().Name);
                         
-                        // Try multiple name variations
+                        // Try multiple name variations - prioritize "Saucy" as it's the correct InternalName
                         if (name?.Equals("Saucy", StringComparison.OrdinalIgnoreCase) == true ||
+                            name?.Equals("saucy", StringComparison.OrdinalIgnoreCase) == true ||
                             name?.Equals("Saucy.Saucy", StringComparison.OrdinalIgnoreCase) == true ||
-                            name?.Contains("Saucy") == true)
+                            name?.Contains("Saucy", StringComparison.OrdinalIgnoreCase) == true ||
+                            name?.Contains("saucy", StringComparison.OrdinalIgnoreCase) == true)
                         {
                             var instanceProp = plugin.GetType().GetProperty("Instance");
                             log.Information("[SaucyReflection] ✅ Found Saucy plugin: '{name}'", name);
@@ -233,8 +235,7 @@ public class SaucyReflectionService
                 log.Warning("[SaucyReflection] Could not access PluginManager property");
             }
             
-            // Try OtherPlugins as backup
-            log.Information("[SaucyReflection] Trying OtherPlugins as backup...");
+            // Method 2: Try OtherPlugins
             var otherPluginsProp = pluginInterface.GetType().GetProperty("OtherPlugins");
             if (otherPluginsProp?.GetValue(pluginInterface) is System.Collections.IEnumerable otherPlugins)
             {
@@ -248,10 +249,12 @@ public class SaucyReflectionService
                     log.Information("[SaucyReflection] OtherPlugin {count}: '{name}' (Type: {type})", 
                         pluginCount, name, plugin.GetType().Name);
                     
-                    // Try multiple name variations
+                    // Try multiple name variations - prioritize "Saucy" as it's the correct InternalName
                     if (name?.Equals("Saucy", StringComparison.OrdinalIgnoreCase) == true ||
+                        name?.Equals("saucy", StringComparison.OrdinalIgnoreCase) == true ||
                         name?.Equals("Saucy.Saucy", StringComparison.OrdinalIgnoreCase) == true ||
-                        name?.Contains("Saucy") == true)
+                        name?.Contains("Saucy", StringComparison.OrdinalIgnoreCase) == true ||
+                        name?.Contains("saucy", StringComparison.OrdinalIgnoreCase) == true)
                     {
                         var instanceProp = plugin.GetType().GetProperty("Instance");
                         log.Information("[SaucyReflection] ✅ Found Saucy in OtherPlugins: '{name}'", name);
@@ -264,11 +267,105 @@ public class SaucyReflectionService
             {
                 log.Warning("[SaucyReflection] Could not access OtherPlugins property");
             }
+            
+            // Method 3: Try alternative reflection approaches
+            log.Information("[SaucyReflection] Trying alternative reflection approaches...");
+            return TryAlternativePluginAccess();
         }
         catch (Exception ex)
         {
             log.Error(ex, "[SaucyReflection] Direct reflection failed: {msg}", ex.Message);
         }
+        return null;
+    }
+
+    private object? TryAlternativePluginAccess()
+    {
+        try
+        {
+            // Try to access plugin through Dalamud's internal structures
+            log.Information("[SaucyReflection] Trying Dalamud internal access...");
+            
+            // Method 3.1: Try GetPlugin method if it exists
+            var getPluginMethod = pluginInterface.GetType().GetMethod("GetPlugin");
+            if (getPluginMethod != null)
+            {
+                log.Information("[SaucyReflection] Found GetPlugin method, trying with 'Saucy'...");
+                var result = getPluginMethod.Invoke(pluginInterface, new object[] { "Saucy" });
+                if (result != null)
+                {
+                    log.Information("[SaucyReflection] ✅ Found Saucy via GetPlugin: {type}", result.GetType().Name);
+                    return result;
+                }
+            }
+            
+            // Method 3.2: Try GetPlugin with "saucy" (fallback)
+            if (getPluginMethod != null)
+            {
+                log.Information("[SaucyReflection] Trying GetPlugin with 'saucy'...");
+                var result = getPluginMethod.Invoke(pluginInterface, new object[] { "saucy" });
+                if (result != null)
+                {
+                    log.Information("[SaucyReflection] ✅ Found saucy via GetPlugin: {type}", result.GetType().Name);
+                    return result;
+                }
+            }
+            
+            // Method 3.3: Try to find all properties that might contain plugins
+            log.Information("[SaucyReflection] Scanning all PluginInterface properties...");
+            var allProperties = pluginInterface.GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            foreach (var prop in allProperties)
+            {
+                try
+                {
+                    var value = prop.GetValue(pluginInterface);
+                    if (value != null && value.GetType().Name.Contains("Plugin"))
+                    {
+                        log.Information("[SaucyReflection] Found plugin-related property: {propName} = {type}", 
+                            prop.Name, value.GetType().Name);
+                        
+                        // If it's a collection, try to iterate it
+                        if (value is System.Collections.IEnumerable enumerable && !(value is string))
+                        {
+                            var count = 0;
+                            foreach (var item in enumerable)
+                            {
+                                count++;
+                                if (count > 10) break; // Limit to avoid spam
+                                
+                                var itemType = item?.GetType().Name ?? "null";
+                                log.Information("[SaucyReflection] {propName}[{count}]: {type}", prop.Name, count, itemType);
+                                
+                                // Try to get InternalName from this item
+                                if (item != null)
+                                {
+                                    var nameProp = item.GetType().GetProperty("InternalName");
+                                    var name = nameProp?.GetValue(item)?.ToString();
+                                    if (name?.Equals("Saucy", StringComparison.OrdinalIgnoreCase) == true ||
+                                        name?.Equals("saucy", StringComparison.OrdinalIgnoreCase) == true)
+                                    {
+                                        var instanceProp = item.GetType().GetProperty("Instance");
+                                        log.Information("[SaucyReflection] ✅ Found Saucy in {propName}: '{name}'", prop.Name, name);
+                                        return instanceProp?.GetValue(item);
+                                    }
+                                }
+                            }
+                            if (count > 10)
+                                log.Information("[SaucyReflection] {propName} has more than 10 items, stopped scanning", prop.Name);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log.Information("[SaucyReflection] Property {propName} access failed: {msg}", prop.Name, ex.Message);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "[SaucyReflection] Alternative plugin access failed");
+        }
+        
         return null;
     }
 
