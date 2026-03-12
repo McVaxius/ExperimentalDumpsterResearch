@@ -287,27 +287,47 @@ public class SaucyReflectionService
             log.Information("[SaucyReflection] Trying Dalamud internal access...");
             
             // Method 3.1: Try GetPlugin method if it exists
-            var getPluginMethod = pluginInterface.GetType().GetMethod("GetPlugin");
-            if (getPluginMethod != null)
+            var getPluginMethods = pluginInterface.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .Where(m => m.Name == "GetPlugin")
+                .ToArray();
+            foreach (var method in getPluginMethods)
             {
-                log.Information("[SaucyReflection] Found GetPlugin method, trying with 'Saucy'...");
-                var result = getPluginMethod.Invoke(pluginInterface, new object[] { "Saucy" });
-                if (result != null)
+                var parameters = method.GetParameters();
+                log.Information("[SaucyReflection] Found GetPlugin method with {count} parameters: [{params}]", 
+                    parameters.Length, string.Join(", ", parameters.Select(p => $"{p.ParameterType.Name} {p.Name}")));
+                
+                // Try the string overload (GetPlugin(string internalName))
+                if (parameters.Length == 1 && parameters[0].ParameterType == typeof(string))
                 {
-                    log.Information("[SaucyReflection] ✅ Found Saucy via GetPlugin: {type}", result.GetType().Name);
-                    return result;
-                }
-            }
-            
-            // Method 3.2: Try GetPlugin with "saucy" (fallback)
-            if (getPluginMethod != null)
-            {
-                log.Information("[SaucyReflection] Trying GetPlugin with 'saucy'...");
-                var result = getPluginMethod.Invoke(pluginInterface, new object[] { "saucy" });
-                if (result != null)
-                {
-                    log.Information("[SaucyReflection] ✅ Found saucy via GetPlugin: {type}", result.GetType().Name);
-                    return result;
+                    try
+                    {
+                        log.Information("[SaucyReflection] Trying GetPlugin(string) with 'Saucy'...");
+                        var result = method.Invoke(pluginInterface, new object[] { "Saucy" });
+                        if (result != null)
+                        {
+                            log.Information("[SaucyReflection] ✅ Found Saucy via GetPlugin(string): {type}", result.GetType().Name);
+                            return result;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Information("[SaucyReflection] GetPlugin(string) with 'Saucy' failed: {msg}", ex.Message);
+                    }
+                    
+                    try
+                    {
+                        log.Information("[SaucyReflection] Trying GetPlugin(string) with 'saucy'...");
+                        var result = method.Invoke(pluginInterface, new object[] { "saucy" });
+                        if (result != null)
+                        {
+                            log.Information("[SaucyReflection] ✅ Found saucy via GetPlugin(string): {type}", result.GetType().Name);
+                            return result;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Information("[SaucyReflection] GetPlugin(string) with 'saucy' failed: {msg}", ex.Message);
+                    }
                 }
             }
             
