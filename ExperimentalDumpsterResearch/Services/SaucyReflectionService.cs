@@ -102,23 +102,62 @@ public class SaucyReflectionService
     {
         try
         {
-            // Try to get the plugin through reflection on the plugin interface
-            var pluginManagerProperty = pluginInterface.GetType().GetProperty("PluginManager");
-            if (pluginManagerProperty?.GetValue(pluginInterface) is object pluginManager)
+            log.Information("[SaucyReflection] Attempting to find Saucy plugin...");
+            
+            // Method 1: Try reflection on PluginManager (most reliable)
+            try
             {
-                var pluginsProperty = pluginManager.GetType().GetProperty("InstalledPlugins");
-                if (pluginsProperty?.GetValue(pluginManager) is System.Collections.IEnumerable plugins)
+                var pluginManagerProperty = pluginInterface.GetType().GetProperty("PluginManager");
+                if (pluginManagerProperty?.GetValue(pluginInterface) is object pluginManager)
                 {
+                    log.Information("[SaucyReflection] Found PluginManager via reflection");
+                    var pluginsProperty = pluginManager.GetType().GetProperty("InstalledPlugins");
+                    if (pluginsProperty?.GetValue(pluginManager) is System.Collections.IEnumerable plugins)
+                    {
+                        foreach (var plugin in plugins)
+                        {
+                            var nameProp = plugin.GetType().GetProperty("InternalName");
+                            var name = nameProp?.GetValue(plugin)?.ToString();
+                            log.Information("[SaucyReflection] Checking plugin via reflection: {name}", name ?? "null");
+                            if (name?.Equals("Saucy", StringComparison.OrdinalIgnoreCase) == true)
+                            {
+                                var instanceProp = plugin.GetType().GetProperty("Instance");
+                                log.Information("[SaucyReflection] Found Saucy via reflection");
+                                return instanceProp?.GetValue(plugin);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log.Information("[SaucyReflection] PluginManager reflection failed: {msg}", ex.Message);
+            }
+
+            // Method 2: Try OtherPlugins (some Dalamud versions)
+            try
+            {
+                var otherPluginsProp = pluginInterface.GetType().GetProperty("OtherPlugins");
+                if (otherPluginsProp?.GetValue(pluginInterface) is System.Collections.IEnumerable plugins)
+                {
+                    log.Information("[SaucyReflection] Found OtherPlugins via reflection");
                     foreach (var plugin in plugins)
                     {
                         var nameProp = plugin.GetType().GetProperty("InternalName");
-                        if (nameProp?.GetValue(plugin)?.ToString().Equals("Saucy", StringComparison.OrdinalIgnoreCase) == true)
+                        var name = nameProp?.GetValue(plugin)?.ToString();
+                        log.Information("[SaucyReflection] Checking plugin via OtherPlugins: {name}", name ?? "null");
+                        if (name?.Equals("Saucy", StringComparison.OrdinalIgnoreCase) == true)
                         {
                             var instanceProp = plugin.GetType().GetProperty("Instance");
+                            log.Information("[SaucyReflection] Found Saucy via OtherPlugins");
                             return instanceProp?.GetValue(plugin);
                         }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                log.Information("[SaucyReflection] OtherPlugins reflection failed: {msg}", ex.Message);
             }
         }
         catch (Exception ex)
