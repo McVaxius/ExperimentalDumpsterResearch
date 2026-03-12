@@ -6,6 +6,7 @@ using Dalamud.IoC;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System.Linq;
 using ImGuiNET;
 using ExperimentalDumpsterResearch.Services;
 using ExperimentalDumpsterResearch.Windows;
@@ -162,6 +163,9 @@ public sealed class Plugin : IDalamudPlugin
                 case "saucy":
                     TestSaucyReflection();
                     break;
+                case "plugins":
+                    ListAvailablePlugins();
+                    break;
                 default:
                     if (args.ToLower().StartsWith("setvideo "))
                     {
@@ -178,7 +182,7 @@ public sealed class Plugin : IDalamudPlugin
                     else
                     {
                         ChatGui.Print($"[EDR] Unknown command: {args}");
-                        ChatGui.Print("[EDR] Available: status, play, play <name>, stop, forcestop, test, bench, overlay, setvideo <path>, videos, setfolder <name>, saucy");
+                        ChatGui.Print("[EDR] Available: status, play, play <name>, stop, forcestop, test, bench, overlay, setvideo <path>, videos, setfolder <name>, saucy, plugins");
                     }
                     break;
             }
@@ -589,12 +593,106 @@ public sealed class Plugin : IDalamudPlugin
             {
                 ChatGui.Print("[EDR] ❌ Failed to access Saucy Mini Cactpot setting");
                 ChatGui.Print("[EDR] Make sure Saucy plugin is installed and loaded");
+                ChatGui.Print("[EDR] Try /edr plugins to see what plugins are available");
             }
         }
         catch (Exception ex)
         {
             Log.Error(ex, "[EDR] Error testing Saucy reflection");
             ChatGui.Print("[EDR] Error testing Saucy reflection - check /xllog");
+        }
+    }
+
+    /// <summary>
+    /// List all available plugins
+    /// </summary>
+    private void ListAvailablePlugins()
+    {
+        try
+        {
+            ChatGui.Print("[EDR] Scanning for available plugins...");
+            
+            // Try to find plugins via multiple methods
+            var foundPlugins = new HashSet<string>();
+            
+            // Method 1: PluginManager
+            try
+            {
+                var pluginManagerProperty = PluginInterface.GetType().GetProperty("PluginManager");
+                if (pluginManagerProperty?.GetValue(PluginInterface) is object pluginManager)
+                {
+                    var pluginsProperty = pluginManager.GetType().GetProperty("InstalledPlugins");
+                    if (pluginsProperty?.GetValue(pluginManager) is System.Collections.IEnumerable plugins)
+                    {
+                        foreach (var plugin in plugins)
+                        {
+                            var nameProp = plugin.GetType().GetProperty("InternalName");
+                            var name = nameProp?.GetValue(plugin)?.ToString();
+                            if (!string.IsNullOrEmpty(name))
+                                foundPlugins.Add(name);
+                        }
+                        ChatGui.Print($"[EDR] PluginManager: {foundPlugins.Count} plugins found");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[EDR] Error accessing PluginManager");
+            }
+            
+            // Method 2: OtherPlugins
+            try
+            {
+                var otherPluginsProp = PluginInterface.GetType().GetProperty("OtherPlugins");
+                if (otherPluginsProp?.GetValue(PluginInterface) is System.Collections.IEnumerable otherPlugins)
+                {
+                    var otherFoundPlugins = new HashSet<string>();
+                    foreach (var plugin in otherPlugins)
+                    {
+                        var nameProp = plugin.GetType().GetProperty("InternalName");
+                        var name = nameProp?.GetValue(plugin)?.ToString();
+                        if (!string.IsNullOrEmpty(name))
+                            otherFoundPlugins.Add(name);
+                    }
+                    ChatGui.Print($"[EDR] OtherPlugins: {otherFoundPlugins.Count} plugins found");
+                    
+                    // Merge with previous results
+                    foreach (var name in otherFoundPlugins)
+                        foundPlugins.Add(name);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "[EDR] Error accessing OtherPlugins");
+            }
+            
+            // Display results
+            if (foundPlugins.Count > 0)
+            {
+                ChatGui.Print($"[EDR] Total unique plugins found: {foundPlugins.Count}");
+                var sortedPlugins = foundPlugins.OrderBy(p => p).ToList();
+                ChatGui.Print($"[EDR] Plugins: {string.Join(", ", sortedPlugins)}");
+                
+                // Check for Saucy specifically
+                if (foundPlugins.Contains("Saucy"))
+                {
+                    ChatGui.Print("[EDR] ✅ Saucy plugin found in the list!");
+                }
+                else
+                {
+                    ChatGui.Print("[EDR] ❌ Saucy plugin not found in the list");
+                    ChatGui.Print($"[EDR] Similar names: {string.Join(", ", foundPlugins.Where(p => p.ToLower().Contains("sauc")).ToList())}");
+                }
+            }
+            else
+            {
+                ChatGui.Print("[EDR] No plugins found - plugin access may be restricted");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EDR] Error listing plugins");
+            ChatGui.Print("[EDR] Error listing plugins - check /xllog");
         }
     }
 }
