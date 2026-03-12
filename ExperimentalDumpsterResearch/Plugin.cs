@@ -32,6 +32,7 @@ public sealed class Plugin : IDalamudPlugin
     // Experimental services
     private VideoPlaybackService videoService;
     private TestBenchService testBenchService;
+    private SaucyReflectionService saucyReflectionService;
 
     // IPC providers
     private readonly ICallGateProvider<string, string> _playVideoIpc;
@@ -52,6 +53,7 @@ public sealed class Plugin : IDalamudPlugin
         // Initialize experimental services
         videoService = new VideoPlaybackService(configuration, Log, ChatGui);
         testBenchService = new TestBenchService(configuration, videoService, Log, ChatGui);
+        saucyReflectionService = new SaucyReflectionService(Log, PluginInterface);
 
         mainWindow = new MainWindow(this, configuration, videoService, testBenchService);
         configWindow = new ConfigWindow(this, configuration);
@@ -157,6 +159,9 @@ public sealed class Plugin : IDalamudPlugin
                 case "setfolder":
                     SetVideosFolder();
                     break;
+                case "saucy":
+                    TestSaucyReflection();
+                    break;
                 default:
                     if (args.ToLower().StartsWith("setvideo "))
                     {
@@ -173,7 +178,7 @@ public sealed class Plugin : IDalamudPlugin
                     else
                     {
                         ChatGui.Print($"[EDR] Unknown command: {args}");
-                        ChatGui.Print("[EDR] Available: status, play, play <name>, stop, forcestop, test, bench, overlay, setvideo <path>, videos, setfolder <name>");
+                        ChatGui.Print("[EDR] Available: status, play, play <name>, stop, forcestop, test, bench, overlay, setvideo <path>, videos, setfolder <name>, saucy");
                     }
                     break;
             }
@@ -555,6 +560,7 @@ public sealed class Plugin : IDalamudPlugin
             videos.AddRange(files
                                         .Select(Path.GetFileName)
                                         .Where(name => name != null)
+                                        .Select(name => name!)
                                         .OrderBy(name => name));
         }
         else
@@ -563,5 +569,32 @@ public sealed class Plugin : IDalamudPlugin
         }
         
         return videos;
+    }
+
+    /// <summary>
+    /// Test Saucy Mini Cactpot reflection access
+    /// </summary>
+    private void TestSaucyReflection()
+    {
+        try
+        {
+            ChatGui.Print("[EDR] Testing Saucy Mini Cactpot reflection access...");
+            
+            if (saucyReflectionService.TestSaucyMiniCactpotAccess())
+            {
+                ChatGui.Print("[EDR] ✅ Successfully accessed and modified Saucy Mini Cactpot setting!");
+                ChatGui.Print("[EDR] Check Saucy's Other Games tab to see if Auto Mini-Cactpot was toggled");
+            }
+            else
+            {
+                ChatGui.Print("[EDR] ❌ Failed to access Saucy Mini Cactpot setting");
+                ChatGui.Print("[EDR] Make sure Saucy plugin is installed and loaded");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "[EDR] Error testing Saucy reflection");
+            ChatGui.Print("[EDR] Error testing Saucy reflection - check /xllog");
+        }
     }
 }
