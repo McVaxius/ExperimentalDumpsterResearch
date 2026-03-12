@@ -296,7 +296,7 @@ public class SaucyReflectionService
                 log.Information("[SaucyReflection] Found GetPlugin method with {count} parameters: [{params}]", 
                     parameters.Length, string.Join(", ", parameters.Select(p => $"{p.ParameterType.Name} {p.Name}")));
                 
-                // Try the string overload (GetPlugin(string internalName))
+                // Try the string overload (GetPlugin(string internalName)) - doesn't exist in this version
                 if (parameters.Length == 1 && parameters[0].ParameterType == typeof(string))
                 {
                     try
@@ -327,6 +327,56 @@ public class SaucyReflectionService
                     catch (Exception ex)
                     {
                         log.Information("[SaucyReflection] GetPlugin(string) with 'saucy' failed: {msg}", ex.Message);
+                    }
+                }
+                
+                // Try Assembly-based GetPlugin by loading Saucy assembly
+                if (parameters.Length == 1 && parameters[0].ParameterType == typeof(System.Reflection.Assembly))
+                {
+                    try
+                    {
+                        log.Information("[SaucyReflection] Trying GetPlugin(Assembly) approach...");
+                        var saucyAssembly = TryGetSaucyAssembly();
+                        if (saucyAssembly != null)
+                        {
+                            var result = method.Invoke(pluginInterface, new object[] { saucyAssembly });
+                            if (result != null)
+                            {
+                                log.Information("[SaucyReflection] ✅ Found Saucy via GetPlugin(Assembly): {type}", result.GetType().Name);
+                                return result;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Information("[SaucyReflection] GetPlugin(Assembly) failed: {msg}", ex.Message);
+                    }
+                }
+                
+                // Try AssemblyLoadContext-based GetPlugin
+                if (parameters.Length == 1 && parameters[0].ParameterType.Name.Contains("AssemblyLoadContext"))
+                {
+                    try
+                    {
+                        log.Information("[SaucyReflection] Trying GetPlugin(AssemblyLoadContext) approach...");
+                        var saucyAssembly = TryGetSaucyAssembly();
+                        if (saucyAssembly != null)
+                        {
+                            var loadContext = saucyAssembly.GetType().GetProperty("Context")?.GetValue(saucyAssembly);
+                            if (loadContext != null)
+                            {
+                                var result = method.Invoke(pluginInterface, new object[] { loadContext });
+                                if (result != null)
+                                {
+                                    log.Information("[SaucyReflection] ✅ Found Saucy via GetPlugin(AssemblyLoadContext): {type}", result.GetType().Name);
+                                    return result;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Information("[SaucyReflection] GetPlugin(AssemblyLoadContext) failed: {msg}", ex.Message);
                     }
                 }
             }
@@ -384,6 +434,66 @@ public class SaucyReflectionService
         catch (Exception ex)
         {
             log.Error(ex, "[SaucyReflection] Alternative plugin access failed");
+        }
+        
+        return null;
+    }
+
+    private System.Reflection.Assembly? TryGetSaucyAssembly()
+    {
+        try
+        {
+            log.Information("[SaucyReflection] Searching for Saucy assembly...");
+            
+            // Method 1: Look through all loaded assemblies
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+            foreach (var assembly in assemblies)
+            {
+                try
+                {
+                    var assemblyName = assembly.GetName().Name;
+                    log.Information("[SaucyReflection] Checking assembly: {assemblyName}", assemblyName);
+                    
+                    if (assemblyName.Equals("Saucy", StringComparison.OrdinalIgnoreCase) ||
+                        assemblyName.Contains("Saucy"))
+                    {
+                        log.Information("[SaucyReflection] ✅ Found Saucy assembly: {assemblyName}", assemblyName);
+                        return assembly;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log.Information("[SaucyReflection] Error checking assembly: {msg}", ex.Message);
+                }
+            }
+            
+            log.Information("[SaucyReflection] Saucy assembly not found in loaded assemblies");
+            
+            // Method 2: Try to load from plugin directory
+            var pluginDir = pluginInterface.ConfigDirectory.FullName;
+            var saucyPath = Path.Combine(pluginDir, "..", "Saucy", "Saucy.dll");
+            if (File.Exists(saucyPath))
+            {
+                log.Information("[SaucyReflection] Trying to load Saucy from: {path}", saucyPath);
+                try
+                {
+                    var assembly = System.Reflection.Assembly.LoadFrom(saucyPath);
+                    log.Information("[SaucyReflection] ✅ Loaded Saucy assembly from file");
+                    return assembly;
+                }
+                catch (Exception ex)
+                {
+                    log.Information("[SaucyReflection] Failed to load Saucy from file: {msg}", ex.Message);
+                }
+            }
+            else
+            {
+                log.Information("[SaucyReflection] Saucy.dll not found at: {path}", saucyPath);
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "[SaucyReflection] Error finding Saucy assembly");
         }
         
         return null;
