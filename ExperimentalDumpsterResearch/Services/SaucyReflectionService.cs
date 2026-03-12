@@ -475,6 +475,10 @@ public class SaucyReflectionService
                     log.Information("[SaucyReflection] Property {propName} access failed: {msg}", prop.Name, ex.Message);
                 }
             }
+            
+            // Method 3.4: Try to get Saucy plugin directly from assembly
+            log.Information("[SaucyReflection] Trying direct Saucy plugin access...");
+            return TryGetSaucyPluginDirectly();
         }
         catch (Exception ex)
         {
@@ -539,6 +543,109 @@ public class SaucyReflectionService
         catch (Exception ex)
         {
             log.Error(ex, "[SaucyReflection] Error finding Saucy assembly");
+        }
+        
+        return null;
+    }
+
+    private object? TryGetSaucyPluginDirectly()
+    {
+        try
+        {
+            log.Information("[SaucyReflection] Attempting direct Saucy plugin access...");
+            
+            var saucyAssembly = TryGetSaucyAssembly();
+            if (saucyAssembly == null)
+            {
+                log.Information("[SaucyReflection] Saucy assembly not found");
+                return null;
+            }
+            
+            // Try to find the main Saucy plugin class
+            var saucyTypes = saucyAssembly.GetTypes()
+                .Where(t => t.Name.Equals("Saucy", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            
+            log.Information("[SaucyReflection] Found {count} Saucy types", saucyTypes.Length);
+            
+            foreach (var type in saucyTypes)
+            {
+                log.Information("[SaucyReflection] Checking Saucy type: {typeName}", type.Name);
+                
+                // Try to find a static instance property
+                var staticInstanceProp = type.GetProperty("P", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+                if (staticInstanceProp != null)
+                {
+                    var instance = staticInstanceProp.GetValue(null);
+                    if (instance != null)
+                    {
+                        log.Information("[SaucyReflection] ✅ Found Saucy via static P property: {type}", instance.GetType().Name);
+                        return instance;
+                    }
+                }
+                
+                // Try to find any static property that returns the same type
+                var staticProps = type.GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                    .Where(p => p.PropertyType == type)
+                    .ToArray();
+                
+                foreach (var prop in staticProps)
+                {
+                    var instance = prop.GetValue(null);
+                    if (instance != null)
+                    {
+                        log.Information("[SaucyReflection] ✅ Found Saucy via static {propName} property: {type}", prop.Name, instance.GetType().Name);
+                        return instance;
+                    }
+                }
+                
+                // Try to create an instance (might not work if constructor requires parameters)
+                try
+                {
+                    var constructor = type.GetConstructor(Type.EmptyTypes);
+                    if (constructor != null)
+                    {
+                        var instance = constructor.Invoke(null);
+                        log.Information("[SaucyReflection] ✅ Created Saucy instance via constructor: {type}", instance.GetType().Name);
+                        return instance;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log.Information("[SaucyReflection] Constructor creation failed: {msg}", ex.Message);
+                }
+            }
+            
+            // Look for any type that implements IDalamudPlugin
+            var pluginTypes = saucyAssembly.GetTypes()
+                .Where(t => t.GetInterfaces().Any(i => i.Name == "IDalamudPlugin"))
+                .ToArray();
+            
+            log.Information("[SaucyReflection] Found {count} IDalamudPlugin types", pluginTypes.Length);
+            
+            foreach (var type in pluginTypes)
+            {
+                log.Information("[SaucyReflection] Checking plugin type: {typeName}", type.Name);
+                
+                // Try to find a static instance
+                var staticProps = type.GetProperties(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+                    .Where(p => p.PropertyType == type)
+                    .ToArray();
+                
+                foreach (var prop in staticProps)
+                {
+                    var instance = prop.GetValue(null);
+                    if (instance != null)
+                    {
+                        log.Information("[SaucyReflection] ✅ Found plugin via static {propName} property: {type}", prop.Name, instance.GetType().Name);
+                        return instance;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            log.Error(ex, "[SaucyReflection] Error in direct Saucy plugin access");
         }
         
         return null;
