@@ -362,7 +362,44 @@ public class SaucyReflectionService
                         var saucyAssembly = TryGetSaucyAssembly();
                         if (saucyAssembly != null)
                         {
-                            var loadContext = saucyAssembly.GetType().GetProperty("Context")?.GetValue(saucyAssembly);
+                            // Try different ways to get the AssemblyLoadContext
+                            object? loadContext = null;
+                            
+                            // Method 1: Try AssemblyLoadContext property
+                            var contextProp = saucyAssembly.GetType().GetProperty("Context");
+                            if (contextProp != null)
+                            {
+                                loadContext = contextProp.GetValue(saucyAssembly);
+                                log.Information("[SaucyReflection] Got AssemblyLoadContext via Context property");
+                            }
+                            
+                            // Method 2: Try AssemblyLoadContext.GetCurrentContext
+                            if (loadContext == null)
+                            {
+                                var getCurrentContextMethod = typeof(System.Runtime.Loader.AssemblyLoadContext).GetMethod("GetCurrentContext");
+                                if (getCurrentContextMethod != null)
+                                {
+                                    loadContext = getCurrentContextMethod.Invoke(null, null);
+                                    log.Information("[SaucyReflection] Got AssemblyLoadContext via GetCurrentContext");
+                                }
+                            }
+                            
+                            // Method 3: Try to find the context through reflection
+                            if (loadContext == null)
+                            {
+                                var loadContextType = typeof(System.Runtime.Loader.AssemblyLoadContext);
+                                var contexts = AppDomain.CurrentDomain.GetAssemblies()
+                                    .Where(a => a.GetName().Name.Contains("Saucy"))
+                                    .Select(a => a.GetType().GetProperty("Context")?.GetValue(a))
+                                    .FirstOrDefault(ctx => ctx != null);
+                                
+                                if (contexts != null)
+                                {
+                                    loadContext = contexts;
+                                    log.Information("[SaucyReflection] Got AssemblyLoadContext via reflection search");
+                                }
+                            }
+                            
                             if (loadContext != null)
                             {
                                 var result = method.Invoke(pluginInterface, new object[] { loadContext });
@@ -371,6 +408,14 @@ public class SaucyReflectionService
                                     log.Information("[SaucyReflection] ✅ Found Saucy via GetPlugin(AssemblyLoadContext): {type}", result.GetType().Name);
                                     return result;
                                 }
+                                else
+                                {
+                                    log.Information("[SaucyReflection] GetPlugin(AssemblyLoadContext) returned null");
+                                }
+                            }
+                            else
+                            {
+                                log.Information("[SaucyReflection] Could not get AssemblyLoadContext for Saucy");
                             }
                         }
                     }
