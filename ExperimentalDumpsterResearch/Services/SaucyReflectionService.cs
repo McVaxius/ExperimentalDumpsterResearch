@@ -27,6 +27,10 @@ public class SaucyReflectionService
     {
         try
         {
+            // Version check to ensure we're running the latest code
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
+            log.Information("[SaucyReflection] Starting test - Version: {version}", version);
+            
             log.Information("[SaucyReflection] Testing access to Saucy plugin...");
 
             // Try to get Saucy plugin through reflection
